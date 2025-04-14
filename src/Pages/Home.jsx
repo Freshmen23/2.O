@@ -1,5 +1,8 @@
 import { motion } from 'framer-motion';
 import { Search, Star, ArrowRight } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { db } from '../utils/firebase';
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 
 const container = {
   hidden: { opacity: 0 },
@@ -17,6 +20,100 @@ const item = {
 };
 
 export const Home = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedProfessor, setSelectedProfessor] = useState(null);
+  const [topProfessors, setTopProfessors] = useState([]);
+  const [allProfessors, setAllProfessors] = useState([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [professorReviews, setProfessorReviews] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // In your Home component's useEffect
+useEffect(() => {
+  const fetchData = async () => {
+    // For top professors
+    const professorsQuery = query(
+      collection(db, 'faculties'), 
+      orderBy('overall', 'desc'), 
+      limit(3)
+    );
+    const topSnapshot = await getDocs(professorsQuery);
+    
+    // Add the conversion here
+    const topProfessors = topSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        Teaching: parseFloat(data.Teaching) || 0,
+        Evaluation: parseFloat(data.Evaluation) || 0,
+        Behaviour: parseFloat(data.Behaviour) || 0,
+        Internals: parseFloat(data.Internals) || 0,
+        overall: parseFloat(data.overall) || 0,
+        reviewCount: data.reviewCount || 0,
+        name: data.name,
+        department: data.department
+      };
+    });
+    setTopProfessors(topProfessors);
+
+    // For all professors
+    const allSnapshot = await getDocs(collection(db, 'faculties'));
+    const allProfessors = allSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        Teaching: parseFloat(data.Teaching) || 0,
+        Evaluation: parseFloat(data.Evaluation) || 0,
+        Behaviour: parseFloat(data.Behaviour) || 0,
+        Internals: parseFloat(data.Internals) || 0,
+        overall: parseFloat(data.overall) || 0,
+        reviewCount: data.reviewCount || 0,
+        name: data.name,
+        department: data.department
+      };
+    });
+    setAllProfessors(allProfessors);
+  };
+  fetchData();
+}, []);
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!selectedProfessor) return;
+      setLoading(true);
+      try {
+        const reviewsQuery = query(
+          collection(db, `faculties/${selectedProfessor.id}/reviews`),
+          orderBy('timestamp', 'desc'),
+          limit(5)
+        );
+        const snapshot = await getDocs(reviewsQuery);
+        setProfessorReviews(snapshot.docs.map(doc => doc.data()));
+      } catch (error) {
+        console.error("Error fetching reviews:", error);
+      }
+      setLoading(false);
+    };
+    fetchReviews();
+  }, [selectedProfessor]);
+
+  const filteredProfessors = allProfessors.filter(professor =>
+    professor.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const RatingItem = ({ label, value }) => {
+    // Convert value to number and handle undefined/null cases
+    const numericValue = Number(value) || 0;
+    
+    return (
+      <div className="flex items-center justify-between p-3 bg-indigo-50 dark:bg-gray-700 rounded-lg">
+        <span className="text-gray-600 dark:text-gray-300">{label}</span>
+        <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+          {numericValue.toFixed(1)}
+        </span>
+      </div>
+    );
+  };
   return (
     <motion.div
       initial="hidden"
@@ -24,6 +121,7 @@ export const Home = () => {
       variants={container}
       className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12"
     >
+      {/* Header Section Remains Same */}
       <motion.div
         variants={item}
         className="text-center mb-12"
@@ -35,10 +133,9 @@ export const Home = () => {
           Make informed decisions about your education with real student reviews
         </p>
       </motion.div>
-
       <motion.div
         variants={item}
-        className="max-w-2xl mx-auto mb-12"
+        className="max-w-2xl mx-auto mb-12 relative"
       >
         <div className="flex gap-4">
           <input
@@ -48,26 +145,118 @@ export const Home = () => {
                      bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm
                      focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none
                      transition-all duration-300"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setIsDropdownOpen(true);
+            }}
+            onFocus={() => setIsDropdownOpen(true)}
           />
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl text-white
-                     shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50
-                     transition-all duration-300"
-          >
-            <Search className="w-5 h-5" />
-          </motion.button>
         </div>
+
+        {isDropdownOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute top-full left-0 right-0 mt-2 max-h-60 overflow-y-auto
+                     bg-white dark:bg-gray-800 rounded-xl shadow-lg z-50 border
+                     border-indigo-100 dark:border-gray-700"
+          >
+            {filteredProfessors.map(professor => (
+              <div
+                key={professor.id}
+                className="p-3 hover:bg-indigo-50 dark:hover:bg-gray-700 cursor-pointer
+                         transition-colors border-b border-indigo-50 dark:border-gray-700"
+                onClick={() => {
+                  setSelectedProfessor(professor);
+                  setIsDropdownOpen(false);
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium truncate">{professor.name}</h3>
+                  <div className="flex items-center space-x-2">
+                    <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                    <span className="text-sm text-yellow-700 dark:text-yellow-300">
+                      {professor.overall?.toFixed(1) || 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </motion.div>
+        )}
       </motion.div>
+
+      {selectedProfessor && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg
+                   border border-indigo-100 dark:border-gray-700"
+        >
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">{selectedProfessor.name}</h2>
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center bg-yellow-100 dark:bg-yellow-900 px-3 py-1 rounded-full">
+                  <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                  <span className="ml-1 text-yellow-700 dark:text-yellow-300">
+                    {selectedProfessor.overall?.toFixed(1)}
+                  </span>
+                </div>
+                <span className="text-gray-600 dark:text-gray-400">
+                  {selectedProfessor.reviewCount} reviews
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <RatingItem label="Teaching" value={selectedProfessor.Teaching} />
+            <RatingItem label="Evaluation" value={selectedProfessor.Evaluation} />
+            <RatingItem label="Behaviour" value={selectedProfessor.Behaviour} />
+            <RatingItem label="Internals" value={selectedProfessor.Internals} />
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Recent Reviews</h3>
+            {loading ? (
+              <div className="text-center py-4">Loading reviews...</div>
+            ) : professorReviews.length > 0 ? (
+              professorReviews.map((review, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="p-4 bg-indigo-50 dark:bg-gray-700 rounded-lg"
+                >
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div>Teaching: {review.teaching?.toFixed(1)}</div>
+                    <div>Evaluation: {review.evaluation?.toFixed(1)}</div>
+                    <div>Behaviour: {review.behaviour?.toFixed(1)}</div>
+                    <div>Internals: {review.internals?.toFixed(1)}</div>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {new Date(review.timestamp?.toDate()).toLocaleDateString()}
+                  </p>
+                </motion.div>
+              ))
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                No reviews available yet
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
 
       <motion.div
         variants={container}
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
       >
-        {[1, 2, 3].map((i) => (
+        {topProfessors.map((professor) => (
           <motion.div
-            key={i}
+            key={professor.id}
             variants={item}
             whileHover={{ y: -5 }}
             className="group rounded-xl bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm p-6
@@ -77,22 +266,44 @@ export const Home = () => {
           >
             <div className="flex items-center mb-4">
               <div className="flex-1">
-                <h3 className="text-lg font-semibold">Dr. John Smith</h3>
-                <p className="text-gray-600 dark:text-gray-400">Computer Science</p>
+                <h3 className="text-lg font-semibold truncate">{professor.name}</h3>
+                <div className="flex items-center space-x-2 mt-2">
+                  <div className="flex items-center bg-green-100 dark:bg-green-900 px-2 py-1 rounded-full">
+                    <span className="text-sm text-green-700 dark:text-green-300">
+                      Teaching: {professor.Teaching || 'N/A'}
+                    </span>
+                  </div>
+                </div>
               </div>
               <div className="flex items-center bg-yellow-100 dark:bg-yellow-900 px-3 py-1 rounded-full">
                 <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                <span className="ml-1 text-yellow-700 dark:text-yellow-300">4.5</span>
+                <span className="ml-1 text-yellow-700 dark:text-yellow-300">
+                  {professor.overall?.toFixed(1)}
+                </span>
               </div>
             </div>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              "Excellent professor who really cares about student success..."
-            </p>
+
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className="text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Evaluation:</span>
+                <span className="ml-2 font-medium">{professor.Evaluation || 'N/A'}</span>
+              </div>
+              <div className="text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Behaviour:</span>
+                <span className="ml-2 font-medium">{professor.Behaviour || 'N/A'}</span>
+              </div>
+              <div className="text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Internals:</span>
+                <span className="ml-2 font-medium">{professor.Internals || 'N/A'}</span>
+              </div>
+            </div>
+
             <motion.button
               whileHover={{ x: 5 }}
               className="flex items-center text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-800 dark:group-hover:text-indigo-300"
+              onClick={() => setSelectedProfessor(professor)}
             >
-              Read More
+              View Details
               <ArrowRight className="w-4 h-4 ml-2" />
             </motion.button>
           </motion.div>

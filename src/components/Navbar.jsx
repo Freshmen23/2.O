@@ -31,8 +31,8 @@ export const Navbar = () => {
             {[
               { path: '/', label: 'Home' },
               { path: '/about', label: 'About' },
+              { path: '/review', label: 'review' },
               { path: '/contact', label: 'Contact' },
-              { path: '/review', label: 'review' }
             ].map((item) => (
               <Link
                 key={item.path}
