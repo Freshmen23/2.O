@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
 import { Search, Star, ArrowRight } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState,useRef  } from 'react';
 import { db } from '../utils/firebase';
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, limit,onSnapshot  } from 'firebase/firestore';
+
 
 const container = {
   hidden: { opacity: 0 },
@@ -27,55 +28,80 @@ export const Home = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [professorReviews, setProfessorReviews] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const searchRef = useRef(null);
+
+// to handle click outside
+  useEffect(() => {
+    // 🔹 2. Handle click outside
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
 
   // In your Home component's useEffect
-useEffect(() => {
-  const fetchData = async () => {
-    // For top professors
-    const professorsQuery = query(
-      collection(db, 'faculties'), 
-      orderBy('overall', 'desc'), 
-      limit(3)
-    );
-    const topSnapshot = await getDocs(professorsQuery);
-    
-    // Add the conversion here
-    const topProfessors = topSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        Teaching: parseFloat(data.Teaching) || 0,
-        Evaluation: parseFloat(data.Evaluation) || 0,
-        Behaviour: parseFloat(data.Behaviour) || 0,
-        Internals: parseFloat(data.Internals) || 0,
-        overall: parseFloat(data.overall) || 0,
-        reviewCount: data.reviewCount || 0,
-        name: data.name,
-        department: data.department
-      };
-    });
-    setTopProfessors(topProfessors);
+  useEffect(() => {
+    const fetchData = async () => {
+      // For top professors
+      const professorsQuery = query(
+        collection(db, 'faculties'),
+        orderBy('overall', 'desc'),
+        limit(3)
+      );
+      const unsubscribe = onSnapshot(professorsQuery, (snapshot) => {
+        const updated = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setTopProfessors(updated);
+      });
+      const topSnapshot = await getDocs(professorsQuery);
 
-    // For all professors
-    const allSnapshot = await getDocs(collection(db, 'faculties'));
-    const allProfessors = allSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        Teaching: parseFloat(data.Teaching) || 0,
-        Evaluation: parseFloat(data.Evaluation) || 0,
-        Behaviour: parseFloat(data.Behaviour) || 0,
-        Internals: parseFloat(data.Internals) || 0,
-        overall: parseFloat(data.overall) || 0,
-        reviewCount: data.reviewCount || 0,
-        name: data.name,
-        department: data.department
-      };
-    });
-    setAllProfessors(allProfessors);
-  };
-  fetchData();
-}, []);
+      // Add the conversion here
+      const topProfessors = topSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          Teaching: parseFloat(data.Teaching) || 0,
+          Evaluation: parseFloat(data.Evaluation) || 0,
+          Behaviour: parseFloat(data.Behaviour) || 0,
+          Internals: parseFloat(data.Internals) || 0,
+          overall: parseFloat(data.overall) || 0,
+          reviewCount: data.reviewCount || 0,
+          name: data.name,
+          department: data.department
+        };
+      });
+      setTopProfessors(topProfessors);
+
+      // For all professors
+      const allSnapshot = await getDocs(collection(db, 'faculties'));
+      const allProfessors = allSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          Teaching: parseFloat(data.Teaching) || 0,
+          Evaluation: parseFloat(data.Evaluation) || 0,
+          Behaviour: parseFloat(data.Behaviour) || 0,
+          Internals: parseFloat(data.Internals) || 0,
+          overall: parseFloat(data.overall) || 0,
+          reviewCount: data.reviewCount || 0,
+          name: data.name,
+          // department: data.department
+        };
+      });
+      setAllProfessors(allProfessors);
+    };
+    fetchData();
+  }, []);
 
   useEffect(() => {
     const fetchReviews = async () => {
@@ -104,7 +130,7 @@ useEffect(() => {
   const RatingItem = ({ label, value }) => {
     // Convert value to number and handle undefined/null cases
     const numericValue = Number(value) || 0;
-    
+
     return (
       <div className="flex items-center justify-between p-3 bg-indigo-50 dark:bg-gray-700 rounded-lg">
         <span className="text-gray-600 dark:text-gray-300">{label}</span>
@@ -134,6 +160,7 @@ useEffect(() => {
         </p>
       </motion.div>
       <motion.div
+        ref={searchRef}
         variants={item}
         className="max-w-2xl mx-auto mb-12 relative"
       >
@@ -177,7 +204,10 @@ useEffect(() => {
                   <div className="flex items-center space-x-2">
                     <Star className="w-4 h-4 text-yellow-500 fill-current" />
                     <span className="text-sm text-yellow-700 dark:text-yellow-300">
-                      {professor.overall?.toFixed(1) || 'N/A'}
+                      {((Number(professor.Teaching) * 35
+                        + Number(professor.Evaluation) * 35
+                        + Number(professor.Internals) * 20 +
+                        Number(professor.Behaviour) * 10) / 100).toFixed(2) || 'N/A'}
                     </span>
                   </div>
                 </div>
@@ -218,33 +248,49 @@ useEffect(() => {
             <RatingItem label="Internals" value={selectedProfessor.Internals} />
           </div>
 
+          {/* SHow reviews */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Recent Reviews</h3>
-            {loading ? (
-              <div className="text-center py-4">Loading reviews...</div>
-            ) : professorReviews.length > 0 ? (
-              professorReviews.map((review, index) => (
+
+            {(loading ? Array(3).fill({}) : professorReviews
+              .slice(0, showAllReviews ? undefined : 3))
+              .map((review, index) => (
                 <motion.div
                   key={index}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="p-4 bg-indigo-50 dark:bg-gray-700 rounded-lg"
                 >
-                  <div className="grid grid-cols-2 gap-2 mb-2">
-                    <div>Teaching: {review.teaching?.toFixed(1)}</div>
-                    <div>Evaluation: {review.evaluation?.toFixed(1)}</div>
-                    <div>Behaviour: {review.behaviour?.toFixed(1)}</div>
-                    <div>Internals: {review.internals?.toFixed(1)}</div>
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {new Date(review.timestamp?.toDate()).toLocaleDateString()}
-                  </p>
+                  {loading ? (
+                    <div className="animate-pulse space-y-2">
+                      <div className="h-4 bg-gray-300 rounded w-3/4"></div>
+                      <div className="h-4 bg-gray-300 rounded w-1/2"></div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div>Teaching: {review.teaching?.toFixed(1)}</div>
+                        <div>Evaluation: {review.evaluation?.toFixed(1)}</div>
+                        <div>Behaviour: {review.behaviour?.toFixed(1)}</div>
+                        <div>Internals: {review.internals?.toFixed(1)}</div>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {review.timestamp?.toDate
+                          ? new Date(review.timestamp.toDate()).toLocaleDateString()
+                          : 'N/A'}
+                      </p>
+                    </>
+                  )}
                 </motion.div>
-              ))
-            ) : (
-              <div className="text-center py-4 text-gray-500">
-                No reviews available yet
-              </div>
+              ))}
+
+            {professorReviews.length > 3 && (
+              <button
+                onClick={() => setShowAllReviews(!showAllReviews)}
+                className="text-indigo-600 dark:text-indigo-400 hover:underline"
+              >
+                {showAllReviews ? 'Show Less' : 'Show All'}
+              </button>
             )}
           </div>
         </motion.div>
@@ -278,7 +324,10 @@ useEffect(() => {
               <div className="flex items-center bg-yellow-100 dark:bg-yellow-900 px-3 py-1 rounded-full">
                 <Star className="w-4 h-4 text-yellow-500 fill-current" />
                 <span className="ml-1 text-yellow-700 dark:text-yellow-300">
-                  {professor.overall?.toFixed(1)}
+                  {((Number(professor.Teaching) * 35
+                    + Number(professor.Evaluation) * 35
+                    + Number(professor.Internals) * 20 +
+                    Number(professor.Behaviour) * 10) / 100).toFixed(2)}
                 </span>
               </div>
             </div>
