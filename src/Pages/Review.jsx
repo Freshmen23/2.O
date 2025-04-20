@@ -6,9 +6,21 @@ import { db } from "../utils/firebase";
 import { collection, addDoc, getDocs, doc, runTransaction } from "firebase/firestore";
 
 const generateFacultyId = (name) => {
-  const randomNum = Math.floor(1000 + Math.random() * 9000);
-  const sanitizedName = name.trim().replace(/\s+/g, '-').toLowerCase();
-  return `${sanitizedName}-${randomNum}`;
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const sanitizedName = name.trim().replace(/\s+/g, '-').toLowerCase();
+    return `${sanitizedName}-${randomNum}`;
+};
+
+const formatDisplayName = (name) => {
+    return name.replace(/\b\w/g, char => char.toUpperCase());
+  };
+
+const normalizeName = (name) => {
+    return name
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ')       // Collapse multiple spaces
+        .replace(/[^\w\s]/gi, '');  // Remove special characters
 };
 
 export default function ReviewPage() {
@@ -39,10 +51,10 @@ export default function ReviewPage() {
         const value = e.target.value;
         setSearchQuery(value);
         setIsDropdownOpen(true);
-        
+
         // Check if search query matches any existing faculty
-        const exists = faculties.some(f => 
-            f.name.toLowerCase().trim() === value.toLowerCase().trim()
+        const exists = faculties.some(f =>
+            normalizeName(f.name) === normalizeName(value)
         );
         setShowNewFacultyOption(!exists && value.trim() !== "");
     };
@@ -60,14 +72,27 @@ export default function ReviewPage() {
 
             // Create new faculty if needed
             if (!selectedFacultyId && facultyName) {
-                facultyId = generateFacultyId(facultyName);
+                const normalizedName = normalizeName(facultyName);
+
+                // Check against existing names
+                const exists = faculties.some(f =>
+                    normalizeName(f.name) === normalizedName
+                );
+
+                if (exists) {
+                    alert('This professor already exists!');
+                    setIsSubmitting(false);
+                    return;
+                }
+
+                facultyId = generateFacultyId(normalizedName);
                 await runTransaction(db, async (transaction) => {
                     const facultyRef = doc(db, "faculties", facultyId);
                     const facultyDoc = await transaction.get(facultyRef);
-                    
+
                     if (!facultyDoc.exists()) {
                         transaction.set(facultyRef, {
-                            name: facultyName,
+                            name: normalizedName,  // Use normalized name here
                             reviewCount: 0,
                             overall: 0,
                             lastUpdated: new Date(),
@@ -81,42 +106,49 @@ export default function ReviewPage() {
             const weights = { teaching: 0.35, evaluation: 0.35, behaviour: 0.10, internals: 0.20 };
             const overall = (
                 (parseFloat(teaching) * weights.teaching +
-                parseFloat(evaluation) * weights.evaluation +
-                parseFloat(behaviour) * weights.behaviour +
-                parseFloat(internals) * weights.internals
-            ).toFixed(1));
+                    parseFloat(evaluation) * weights.evaluation +
+                    parseFloat(behaviour) * weights.behaviour +
+                    parseFloat(internals) * weights.internals
+                ).toFixed(1));
 
             // Add review and update faculty stats
+            // In Review.jsx submission handler
             await runTransaction(db, async (transaction) => {
                 const facultyRef = doc(db, "faculties", facultyId);
                 const facultyDoc = await transaction.get(facultyRef);
-
-                if (!facultyDoc.exists()) throw new Error("Faculty not found");
-
-                // Add new review
                 const reviewsRef = collection(facultyRef, "reviews");
-                const newReviewRef = doc(reviewsRef);
-                transaction.set(newReviewRef, {
+
+                // Get all existing reviews
+                const reviewsSnapshot = await getDocs(reviewsRef);
+                const allReviews = reviewsSnapshot.docs.map(doc => doc.data());
+
+                // Add new review to array
+                const newReview = {
                     teaching: parseFloat(teaching),
                     evaluation: parseFloat(evaluation),
                     behaviour: parseFloat(behaviour),
                     internals: parseFloat(internals),
-                    overall: parseFloat(overall),
                     timestamp: new Date()
-                });
+                };
+                 // Add the new review document
+                const newReviewRef = doc(reviewsRef);
+                transaction.set(newReviewRef, newReview);
 
-                // Update faculty stats
-                const currentData = facultyDoc.data();
-                const newCount = currentData.reviewCount + 1;
-                const newAverage = currentData.overall 
-                    ? ((currentData.overall * currentData.reviewCount) + parseFloat(overall)) / newCount
-                    : parseFloat(overall);
+                // Calculate averages
+                const updatedReviews = [...allReviews, newReview];
+                const teachingAvg = updatedReviews.reduce((acc, r) => acc + r.teaching, 0) / updatedReviews.length;
+                const evaluationAvg = updatedReviews.reduce((acc, r) => acc + r.evaluation, 0) / updatedReviews.length;
+                const behaviourAvg = updatedReviews.reduce((acc, r) => acc + r.behaviour, 0) / updatedReviews.length;
+                const internalsAvg = updatedReviews.reduce((acc, r) => acc + r.internals, 0) / updatedReviews.length;
 
                 transaction.update(facultyRef, {
-                    reviewCount: newCount,
-                    overall: newAverage,
+                    reviewCount: updatedReviews.length,
+                    Teaching: teachingAvg,
+                    Evaluation: evaluationAvg,
+                    Behaviour: behaviourAvg,
+                    Internals: internalsAvg,
                     lastUpdated: new Date()
-                });
+                  });
             });
 
             alert("Review submitted successfully!");
@@ -157,7 +189,7 @@ export default function ReviewPage() {
                 {isDropdownOpen && (
                     <div className="absolute top-full left-0 right-0 bg-white border rounded shadow-lg z-10 mt-1 max-h-60 overflow-auto">
                         {faculties
-                            .filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                            .filter(f => normalizeName(f.name).includes(normalizeName(searchQuery)))
                             .map((faculty) => (
                                 <div
                                     key={faculty.id}
@@ -171,7 +203,7 @@ export default function ReviewPage() {
                                     {faculty.name}
                                 </div>
                             ))}
-                        
+
                         {showNewFacultyOption && (
                             <div
                                 className="p-2 hover:bg-gray-100 cursor-pointer text-blue-600"
@@ -202,7 +234,7 @@ export default function ReviewPage() {
                                 disabled={isSubmitting}
                             />
                         </div>
-    
+
                         <div className="space-y-2">
                             <label className="block font-medium">Evaluation (out of 5)</label>
                             <Input
@@ -242,8 +274,8 @@ export default function ReviewPage() {
 
                         {/* Repeat similar blocks for Evaluation, Behaviour, and Internals */}
 
-                        <Button 
-                            className="w-full" 
+                        <Button
+                            className="w-full"
                             onClick={handleSubmit}
                             disabled={isSubmitting}
                         >
