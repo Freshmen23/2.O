@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ const generateFacultyId = (name) => {
 
 const formatDisplayName = (name) => {
     return name.replace(/\b\w/g, char => char.toUpperCase());
-  };
+};
 
 const normalizeName = (name) => {
     return name
@@ -35,6 +35,7 @@ export default function ReviewPage() {
     const [selectedFacultyId, setSelectedFacultyId] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showNewFacultyOption, setShowNewFacultyOption] = useState(false);
+    const dropdownRef = useRef(null);
 
     useEffect(() => {
         const loadFaculties = async () => {
@@ -47,12 +48,23 @@ export default function ReviewPage() {
         loadFaculties();
     }, []);
 
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
     const handleSearchChange = (e) => {
         const value = e.target.value;
         setSearchQuery(value);
         setIsDropdownOpen(true);
 
-        // Check if search query matches any existing faculty
         const exists = faculties.some(f =>
             normalizeName(f.name) === normalizeName(value)
         );
@@ -70,11 +82,8 @@ export default function ReviewPage() {
             let facultyId = selectedFacultyId;
             let facultyName = searchQuery.trim();
 
-            // Create new faculty if needed
             if (!selectedFacultyId && facultyName) {
                 const normalizedName = normalizeName(facultyName);
-
-                // Check against existing names
                 const exists = faculties.some(f =>
                     normalizeName(f.name) === normalizedName
                 );
@@ -92,7 +101,7 @@ export default function ReviewPage() {
 
                     if (!facultyDoc.exists()) {
                         transaction.set(facultyRef, {
-                            name: normalizedName,  // Use normalized name here
+                            name: normalizedName,
                             reviewCount: 0,
                             overall: 0,
                             lastUpdated: new Date(),
@@ -102,7 +111,6 @@ export default function ReviewPage() {
                 });
             }
 
-            // Calculate weighted average
             const weights = { teaching: 0.35, evaluation: 0.35, behaviour: 0.10, internals: 0.20 };
             const overall = (
                 (parseFloat(teaching) * weights.teaching +
@@ -111,18 +119,14 @@ export default function ReviewPage() {
                     parseFloat(internals) * weights.internals
                 ).toFixed(1));
 
-            // Add review and update faculty stats
-            // In Review.jsx submission handler
             await runTransaction(db, async (transaction) => {
                 const facultyRef = doc(db, "faculties", facultyId);
                 const facultyDoc = await transaction.get(facultyRef);
                 const reviewsRef = collection(facultyRef, "reviews");
 
-                // Get all existing reviews
                 const reviewsSnapshot = await getDocs(reviewsRef);
                 const allReviews = reviewsSnapshot.docs.map(doc => doc.data());
 
-                // Add new review to array
                 const newReview = {
                     teaching: parseFloat(teaching),
                     evaluation: parseFloat(evaluation),
@@ -130,11 +134,10 @@ export default function ReviewPage() {
                     internals: parseFloat(internals),
                     timestamp: new Date()
                 };
-                 // Add the new review document
+
                 const newReviewRef = doc(reviewsRef);
                 transaction.set(newReviewRef, newReview);
 
-                // Calculate averages
                 const updatedReviews = [...allReviews, newReview];
                 const teachingAvg = updatedReviews.reduce((acc, r) => acc + r.teaching, 0) / updatedReviews.length;
                 const evaluationAvg = updatedReviews.reduce((acc, r) => acc + r.evaluation, 0) / updatedReviews.length;
@@ -148,16 +151,14 @@ export default function ReviewPage() {
                     Behaviour: behaviourAvg,
                     Internals: internalsAvg,
                     lastUpdated: new Date()
-                  });
+                });
             });
 
             alert("Review submitted successfully!");
-            // Reset form
             setTeaching("");
             setEvaluation("");
             setBehaviour("");
             setInternals("");
-            // Refresh faculty list
             const querySnapshot = await getDocs(collection(db, 'faculties'));
             setFaculties(querySnapshot.docs.map(doc => ({
                 id: doc.id,
@@ -174,10 +175,12 @@ export default function ReviewPage() {
     };
 
     return (
-        <div className="p-6 space-y-4 max-w-md mx-auto">
-            <h2 className="text-xl font-semibold">Review Page</h2>
+        <div className="  p-[5rem] space-y-4 max-w-md mx-auto">
+            <h1 className="my-[2rem] text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
+                Review Page
+            </h1>
 
-            <div className="relative">
+            <div className="dark:text-white dark:bg-indigo-950  relative" ref={dropdownRef}>
                 <Input
                     placeholder="Search faculty"
                     value={searchQuery}
@@ -187,13 +190,13 @@ export default function ReviewPage() {
                 />
 
                 {isDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 bg-white border rounded shadow-lg z-10 mt-1 max-h-60 overflow-auto">
+                    <div className="absolute top-full left-0 right-0 bg-white dark:bg-indigo-950 border border-gray-300 rounded-md shadow-md z-50 mt-1 max-h-60 overflow-y-auto">
                         {faculties
                             .filter(f => normalizeName(f.name).includes(normalizeName(searchQuery)))
                             .map((faculty) => (
                                 <div
                                     key={faculty.id}
-                                    className="p-2 hover:bg-gray-100 cursor-pointer"
+                                    className="p-2 hover:bg-indigo-100 cursor-pointer transition-colors duration-150"
                                     onClick={() => {
                                         setSelectedFacultyId(faculty.id);
                                         setSearchQuery(faculty.name);
@@ -206,7 +209,7 @@ export default function ReviewPage() {
 
                         {showNewFacultyOption && (
                             <div
-                                className="p-2 hover:bg-gray-100 cursor-pointer text-blue-600"
+                                className="p-2 hover:bg-blue-100 cursor-pointer text-blue-600 font-medium"
                                 onClick={() => {
                                     setSelectedFacultyId("");
                                     setIsDropdownOpen(false);
@@ -221,61 +224,29 @@ export default function ReviewPage() {
 
             {(selectedFacultyId || showNewFacultyOption) && (
                 <Card>
-                    <CardContent className="p-4 space-y-4">
-                        <div className="space-y-2">
-                            <label className="block font-medium">Teaching (out of 5)</label>
-                            <Input
-                                type="number"
-                                min="0"
-                                max="5"
-                                step="0.1"
-                                value={teaching}
-                                onChange={(e) => setTeaching(e.target.value)}
-                                disabled={isSubmitting}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block font-medium">Evaluation (out of 5)</label>
-                            <Input
-                                type="number"
-                                min="0"
-                                max="5"
-                                step="0.1"
-                                value={evaluation}
-                                onChange={(e) => setEvaluation(e.target.value)}
-                                disabled={isSubmitting}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="block font-medium">Behaviour (out of 5)</label>
-                            <Input
-                                type="number"
-                                min="0"
-                                max="5"
-                                step="0.1"
-                                value={behaviour}
-                                onChange={(e) => setBehaviour(e.target.value)}
-                                disabled={isSubmitting}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="block font-medium">Internals (out of 5)</label>
-                            <Input
-                                type="number"
-                                min="0"
-                                max="5"
-                                step="0.1"
-                                value={internals}
-                                onChange={(e) => setInternals(e.target.value)}
-                                disabled={isSubmitting}
-                            />
-                        </div>
-
-                        {/* Repeat similar blocks for Evaluation, Behaviour, and Internals */}
+                    <CardContent className="dark:text-white p-4 space-y-4 ">
+                        {[
+                            { label: "Teaching", value: teaching, setter: setTeaching },
+                            { label: "Evaluation", value: evaluation, setter: setEvaluation },
+                            { label: "Behaviour", value: behaviour, setter: setBehaviour },
+                            { label: "Internals", value: internals, setter: setInternals }
+                        ].map(({ label, value, setter }) => (
+                            <div key={label} className="space-y-2">
+                                <label className="block font-medium">{label} (out of 5)</label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    max="5"
+                                    step="0.1"
+                                    value={value}
+                                    onChange={(e) => setter(e.target.value)}
+                                    disabled={isSubmitting}
+                                />
+                            </div>
+                        ))}
 
                         <Button
-                            className="w-full"
+                            className="w-full bg-gray-800 cursor-pointer"
                             onClick={handleSubmit}
                             disabled={isSubmitting}
                         >

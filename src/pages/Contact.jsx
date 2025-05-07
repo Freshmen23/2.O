@@ -103,7 +103,7 @@ export const Contact = () => {
             {
               icon: <Mail className="w-6 h-6" />,
               title: "Email",
-              info: "support@profcheck.com"
+              info: "discoverfreshmen@gmail.com"
             },
             {
               icon: <MessageSquare className="w-6 h-6" />,
