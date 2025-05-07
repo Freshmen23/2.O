@@ -168,7 +168,7 @@ export const Home = () => {
           <input
             type="text"
             placeholder="Search for a professor..."
-            className="w-full px-6 py-3 rounded-xl border-2 border-indigo-100 dark:border-indigo-900 
+            className=" dark:text-white w-full px-6 py-3 rounded-xl border-2 border-indigo-100 dark:border-indigo-900 
                      bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm
                      focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none
                      transition-all duration-300"
@@ -200,7 +200,7 @@ export const Home = () => {
                 }}
               >
                 <div className="flex items-center justify-between">
-                  <h3 className="font-medium truncate">{professor.name}</h3>
+                  <h3 className="dark:text-white font-medium truncate">{professor.name}</h3>
                   <div className="flex items-center space-x-2">
                     <Star className="w-4 h-4 text-yellow-500 fill-current" />
                     <span className="text-sm text-yellow-700 dark:text-yellow-300">
@@ -226,7 +226,7 @@ export const Home = () => {
         >
           <div className="flex items-start justify-between mb-6">
             <div>
-              <h2 className="text-2xl font-bold mb-2">{selectedProfessor.name}</h2>
+              <h2 className=" text-white text-2xl font-bold mb-2">{selectedProfessor.name}</h2>
               <div className="flex items-center space-x-4">
                 <div className="flex items-center bg-yellow-100 dark:bg-yellow-900 px-3 py-1 rounded-full">
                   <Star className="w-4 h-4 text-yellow-500 fill-current" />
@@ -312,10 +312,10 @@ export const Home = () => {
           >
             <div className="flex items-center mb-4">
               <div className="flex-1">
-                <h3 className="text-lg font-semibold truncate">{professor.name}</h3>
+                <h3 className=" dark:text-white text-lg font-semibold truncate">{professor.name}</h3>
                 <div className="flex items-center space-x-2 mt-2">
                   <div className="flex items-center bg-green-100 dark:bg-green-900 px-2 py-1 rounded-full">
-                    <span className="text-sm text-green-700 dark:text-green-300">
+                    <span className=" text-sm text-green-700 dark:text-green-300">
                       Teaching: {professor.Teaching || 'N/A'}
                     </span>
                   </div>
@@ -335,15 +335,15 @@ export const Home = () => {
             <div className="grid grid-cols-2 gap-2 mb-4">
               <div className="text-sm">
                 <span className="text-gray-600 dark:text-gray-400">Evaluation:</span>
-                <span className="ml-2 font-medium">{professor.Evaluation || 'N/A'}</span>
+                <span className="dark:text-white ml-2 font-medium">{((professor.Evaluation).toFixed(2))|| 'N/A'}</span>
               </div>
               <div className="text-sm">
                 <span className="text-gray-600 dark:text-gray-400">Behaviour:</span>
-                <span className="ml-2 font-medium">{professor.Behaviour || 'N/A'}</span>
+                <span className=" dark:text-white ml-2 font-medium">{(professor.Behaviour).toFixed(2) || 'N/A'}</span>
               </div>
               <div className="text-sm">
                 <span className="text-gray-600 dark:text-gray-400">Internals:</span>
-                <span className="ml-2 font-medium">{professor.Internals || 'N/A'}</span>
+                <span className="dark:text-white ml-2 font-medium">{(professor.Internals).toFixed(2) || 'N/A'}</span>
               </div>
             </div>
 

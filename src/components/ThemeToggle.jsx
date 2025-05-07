@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 
 export const ThemeToggle = () => {
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState('dark');
 
   useEffect(() => {
     // Set theme on root element
@@ -12,6 +12,8 @@ export const ThemeToggle = () => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
     // Add/remove theme class on body
     document.body.className = theme;
+
+    // console.log(theme);
   }, [theme]);
 
   const toggleTheme = () => {

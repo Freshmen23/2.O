@@ -24,6 +24,7 @@ export const Navbar = () => {
             </motion.div>
             <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               ProfCheck
+              <sub className="text-xs ml-1 text-gray-500">by FreshMen</sub>
             </span>
           </Link>
 
