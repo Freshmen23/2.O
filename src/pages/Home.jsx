@@ -20,6 +20,7 @@ const item = {
   show: { opacity: 1, y: 0 }
 };
 
+
 export const Home = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProfessor, setSelectedProfessor] = useState(null);
@@ -231,7 +232,10 @@ export const Home = () => {
                 <div className="flex items-center bg-yellow-100 dark:bg-yellow-900 px-3 py-1 rounded-full">
                   <Star className="w-4 h-4 text-yellow-500 fill-current" />
                   <span className="ml-1 text-yellow-700 dark:text-yellow-300">
-                    {selectedProfessor.overall?.toFixed(1)}
+                    {(((selectedProfessor.Teaching) * 35 +
+     (selectedProfessor.Evaluation) * 35 +
+     (selectedProfessor.Internals) * 20 +
+     (selectedProfessor.Behaviour) * 10) / 100).toFixed(1)}
                   </span>
                 </div>
                 <span className="text-gray-600 dark:text-gray-400">
