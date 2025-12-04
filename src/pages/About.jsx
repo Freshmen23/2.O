@@ -16,7 +16,7 @@ const item = {
   show: { opacity: 1, y: 0 }
 };
 
-export const About = () => {
+const About = () => {
   return (
     <motion.div
       initial="hidden"
@@ -122,3 +122,5 @@ export const About = () => {
     </motion.div>
   );
 };
+
+export default About;

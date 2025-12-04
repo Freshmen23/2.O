@@ -176,3 +176,4 @@ export const Contact = () => {
     </motion.div>
   );
 };
+export default Contact;
