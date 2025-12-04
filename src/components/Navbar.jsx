@@ -1,7 +1,10 @@
-import { motion } from 'framer-motion';
-import { Link, useLocation } from 'react-router-dom';
-import { GraduationCap } from 'lucide-react';
-import { ThemeToggle } from './ThemeToggle';
+// src/components/Navbar.jsx
+import React from "react";
+import { motion } from "framer-motion";
+import { Link, useLocation } from "react-router-dom";
+import { GraduationCap } from "lucide-react";
+import { ThemeToggle } from "./ThemeToggle";
+import GoogleLogin from "./GoogleLogin"; // sign-in UI (shows login/logout)
 
 export const Navbar = () => {
   const location = useLocation();
@@ -28,18 +31,18 @@ export const Navbar = () => {
             </span>
           </Link>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 dark:text-gray-300">
             {[
-              { path: '/', label: 'Home' },
-              { path: '/about', label: 'About' },
-              { path: '/review', label: 'review' },
-              { path: '/contact', label: 'Contact' },
+              { path: "/", label: "Home" },
+              { path: "/about", label: "About" },
+              { path: "/review", label: "Review" },
+              { path: "/contact", label: "Contact" },
             ].map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
                 className={`relative px-4 py-2 rounded-lg transition-all duration-300 
-                  ${location.pathname === item.path ? 'text-white' : 'hover:text-indigo-600'}`}
+                  ${location.pathname === item.path ? "text-white" : "hover:text-indigo-600"}`}
               >
                 {location.pathname === item.path && (
                   <motion.div
@@ -51,10 +54,19 @@ export const Navbar = () => {
                 {item.label}
               </Link>
             ))}
+
+{/* GoogleLogin shows sign-in / sign-out and user avatar */}
+            <div className="ml-2 cursor-pointer">
+              <GoogleLogin />
+            </div>
             <ThemeToggle />
+
+            
           </div>
         </div>
       </div>
     </motion.nav>
   );
 };
+
+export default Navbar;
