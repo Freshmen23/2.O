@@ -1,9 +1,8 @@
 import { motion } from 'framer-motion';
 import { Search, Star, ArrowRight } from 'lucide-react';
-import { useEffect, useState,useRef  } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { db } from '../utils/firebase';
-import { collection, getDocs, query, orderBy, limit,onSnapshot  } from 'firebase/firestore';
-
+import { collection, getDocs, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 
 const container = {
   hidden: { opacity: 0 },
@@ -20,7 +19,6 @@ const item = {
   show: { opacity: 1, y: 0 }
 };
 
-
 export const Home = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProfessor, setSelectedProfessor] = useState(null);
@@ -32,9 +30,8 @@ export const Home = () => {
   const [showAllReviews, setShowAllReviews] = useState(false);
   const searchRef = useRef(null);
 
-// to handle click outside
+  // Handle click outside
   useEffect(() => {
-    // 🔹 2. Handle click outside
     const handleClickOutside = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
@@ -47,8 +44,7 @@ export const Home = () => {
     };
   }, []);
 
-
-  // In your Home component's useEffect
+  // Fetch Data Effect
   useEffect(() => {
     const fetchData = async () => {
       // For top professors
@@ -57,33 +53,28 @@ export const Home = () => {
         orderBy('overall', 'desc'),
         limit(3)
       );
+      
+      // Real-time listener for top professors
       const unsubscribe = onSnapshot(professorsQuery, (snapshot) => {
-        const updated = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
+        const updated = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            Teaching: parseFloat(data.Teaching) || 0,
+            Evaluation: parseFloat(data.Evaluation) || 0,
+            Behaviour: parseFloat(data.Behaviour) || 0,
+            Internals: parseFloat(data.Internals) || 0,
+            ClassAverage: data.ClassAverage || 'N/A', // Fetch Text Value
+            overall: parseFloat(data.overall) || 0,
+            reviewCount: data.reviewCount || 0,
+            name: data.name,
+            department: data.department
+          };
+        });
         setTopProfessors(updated);
       });
-      const topSnapshot = await getDocs(professorsQuery);
 
-      // Add the conversion here
-      const topProfessors = topSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          Teaching: parseFloat(data.Teaching) || 0,
-          Evaluation: parseFloat(data.Evaluation) || 0,
-          Behaviour: parseFloat(data.Behaviour) || 0,
-          Internals: parseFloat(data.Internals) || 0,
-          overall: parseFloat(data.overall) || 0,
-          reviewCount: data.reviewCount || 0,
-          name: data.name,
-          department: data.department
-        };
-      });
-      setTopProfessors(topProfessors);
-
-      // For all professors
+      // Initial Fetch for search list (all professors)
       const allSnapshot = await getDocs(collection(db, 'faculties'));
       const allProfessors = allSnapshot.docs.map(doc => {
         const data = doc.data();
@@ -93,10 +84,10 @@ export const Home = () => {
           Evaluation: parseFloat(data.Evaluation) || 0,
           Behaviour: parseFloat(data.Behaviour) || 0,
           Internals: parseFloat(data.Internals) || 0,
+          ClassAverage: data.ClassAverage || 'N/A', // Fetch Text Value
           overall: parseFloat(data.overall) || 0,
           reviewCount: data.reviewCount || 0,
           name: data.name,
-          // department: data.department
         };
       });
       setAllProfessors(allProfessors);
@@ -104,6 +95,7 @@ export const Home = () => {
     fetchData();
   }, []);
 
+  // Fetch Reviews Effect
   useEffect(() => {
     const fetchReviews = async () => {
       if (!selectedProfessor) return;
@@ -141,6 +133,7 @@ export const Home = () => {
       </div>
     );
   };
+
   return (
     <motion.div
       initial="hidden"
@@ -148,7 +141,7 @@ export const Home = () => {
       variants={container}
       className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12"
     >
-      {/* Header Section Remains Same */}
+      {/* Header Section */}
       <motion.div
         variants={item}
         className="text-center mb-12"
@@ -160,6 +153,8 @@ export const Home = () => {
           Make informed decisions about your education with real student reviews
         </p>
       </motion.div>
+
+      {/* Search Bar */}
       <motion.div
         ref={searchRef}
         variants={item}
@@ -218,6 +213,7 @@ export const Home = () => {
         )}
       </motion.div>
 
+      {/* Selected Professor Detailed View */}
       {selectedProfessor && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -233,9 +229,9 @@ export const Home = () => {
                   <Star className="w-4 h-4 text-yellow-500 fill-current" />
                   <span className="ml-1 text-yellow-700 dark:text-yellow-300">
                     {(((selectedProfessor.Teaching) * 35 +
-     (selectedProfessor.Evaluation) * 35 +
-     (selectedProfessor.Internals) * 20 +
-     (selectedProfessor.Behaviour) * 10) / 100).toFixed(1)}
+                      (selectedProfessor.Evaluation) * 35 +
+                      (selectedProfessor.Internals) * 20 +
+                      (selectedProfessor.Behaviour) * 10) / 100).toFixed(1)}
                   </span>
                 </div>
                 <span className="text-gray-600 dark:text-gray-400">
@@ -250,9 +246,17 @@ export const Home = () => {
             <RatingItem label="Evaluation" value={selectedProfessor.Evaluation} />
             <RatingItem label="Behaviour" value={selectedProfessor.Behaviour} />
             <RatingItem label="Internals" value={selectedProfessor.Internals} />
+            
+            {/* Added Class Average Display */}
+            <div className="flex items-center justify-between p-3 bg-indigo-50 dark:bg-gray-700 rounded-lg">
+              <span className="text-gray-600 dark:text-gray-300">Class Avg</span>
+              <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                {selectedProfessor.ClassAverage}
+              </span>
+            </div>
           </div>
 
-          {/* SHow reviews */}
+          {/* Show Reviews */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Recent Reviews</h3>
 
@@ -277,6 +281,10 @@ export const Home = () => {
                         <div>Evaluation: {review.evaluation?.toFixed(1)}</div>
                         <div>Behaviour: {review.behaviour?.toFixed(1)}</div>
                         <div>Internals: {review.internals?.toFixed(1)}</div>
+                        {/* Display Class Average in Review */}
+                        <div className="col-span-2 text-indigo-600 dark:text-indigo-400 font-medium">
+                          Class Avg: {review.classAverage || 'N/A'}
+                        </div>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
                         {review.timestamp?.toDate
@@ -300,6 +308,7 @@ export const Home = () => {
         </motion.div>
       )}
 
+      {/* Top Professors Cards */}
       <motion.div
         variants={container}
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
@@ -339,7 +348,7 @@ export const Home = () => {
             <div className="grid grid-cols-2 gap-2 mb-4">
               <div className="text-sm">
                 <span className="text-gray-600 dark:text-gray-400">Evaluation:</span>
-                <span className="dark:text-white ml-2 font-medium">{((professor.Evaluation).toFixed(2))|| 'N/A'}</span>
+                <span className="dark:text-white ml-2 font-medium">{((professor.Evaluation).toFixed(2)) || 'N/A'}</span>
               </div>
               <div className="text-sm">
                 <span className="text-gray-600 dark:text-gray-400">Behaviour:</span>
@@ -348,6 +357,11 @@ export const Home = () => {
               <div className="text-sm">
                 <span className="text-gray-600 dark:text-gray-400">Internals:</span>
                 <span className="dark:text-white ml-2 font-medium">{(professor.Internals).toFixed(2) || 'N/A'}</span>
+              </div>
+              {/* Added Class Average to Card */}
+              <div className="text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Class Avg:</span>
+                <span className="dark:text-white ml-2 font-medium">{professor.ClassAverage}</span>
               </div>
             </div>
 
