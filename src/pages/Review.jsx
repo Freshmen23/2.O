@@ -290,8 +290,7 @@ export default function ReviewPage() {
 
       {/* Banner telling users they must sign in to propose */}
       <div className="rounded-md p-3 bg-yellow-50 dark:bg-yellow-900/40 border border-yellow-200 dark:border-yellow-700 text-sm text-yellow-800 dark:text-yellow-200">
-        To propose a new professor you must sign in with your college Google account. Viewing and submitting reviews for
-        existing professors does not require sign-in.
+        To propose a new professor or submit a review you have to sign in with your college mail id.
       </div>
 
       <div className="dark:text-white dark:bg-indigo-950 relative" ref={dropdownRef}>
