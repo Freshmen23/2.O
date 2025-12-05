@@ -34,8 +34,8 @@ export const Navbar = () => {
           <div className="flex items-center space-x-4 dark:text-gray-300">
             {[
               { path: "/", label: "Home" },
-              { path: "/about", label: "About" },
               { path: "/review", label: "Review" },
+              { path: "/about", label: "About" },
               { path: "/contact", label: "Contact" },
             ].map((item) => (
               <Link

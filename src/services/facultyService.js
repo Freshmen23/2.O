@@ -19,7 +19,7 @@ export const addFaculty = async (name) => {
     Evaluation: '0',
     Behaviour: '0',
     Internals: '0',
-    Average: 'Not Rated',
+    ClassAverage: 'Not Rated',
     Overall: 'Not Rated'
   });
   return docRef.id;

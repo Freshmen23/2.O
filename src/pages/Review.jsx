@@ -14,7 +14,8 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "../components/AuthContext";
 
-// normalizeName helper (same as before)
+// --- Helpers ---
+
 const normalizeName = (name) =>
   name
     .trim()
@@ -22,13 +23,32 @@ const normalizeName = (name) =>
     .replace(/\s+/g, " ")
     .replace(/[^\w\s]/gi, "");
 
+// Convert text to score for calculation
+const getScore = (val) => {
+  if (val === "Low") return 1;
+  if (val === "Medium") return 2;
+  if (val === "High") return 3;
+  return 0; // fallback
+};
+
+// Convert numeric average back to text
+const getText = (score) => {
+  if (score <= 1.66) return "Low";
+  if (score <= 2.33) return "Medium";
+  return "High";
+};
+
 export default function ReviewPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  
+  // Rating States
   const [behaviour, setBehaviour] = useState("");
   const [evaluation, setEvaluation] = useState("");
   const [internals, setInternals] = useState("");
   const [teaching, setTeaching] = useState("");
+  const [classAverage, setClassAverage] = useState("Medium"); // Default to Medium
+
   const [faculties, setFaculties] = useState([]);
   const [selectedFacultyId, setSelectedFacultyId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,7 +60,7 @@ export default function ReviewPage() {
 
   const { user, loading: authLoading, allowedDomain, signInWithGoogle } = useAuth();
 
-  // load faculties once
+  // Load faculties once
   useEffect(() => {
     const loadFaculties = async () => {
       try {
@@ -53,7 +73,7 @@ export default function ReviewPage() {
     loadFaculties();
   }, []);
 
-  // click outside dropdown
+  // Click outside dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -73,7 +93,6 @@ export default function ReviewPage() {
     setShowNewFacultyOption(!exists && value.trim() !== "");
   };
 
-  // require sign-in before open proposal modal
   const openProposalModal = async () => {
     if (user) {
       setEvidenceUrl("");
@@ -149,7 +168,7 @@ export default function ReviewPage() {
   };
 
   const handleSubmitReview = async () => {
-    if (!teaching || !evaluation || !behaviour || !internals) {
+    if (!teaching || !evaluation || !behaviour || !internals || !classAverage) {
       alert("Please fill all rating fields");
       return;
     }
@@ -181,6 +200,7 @@ export default function ReviewPage() {
           evaluation: parseFloat(evaluation),
           behaviour: parseFloat(behaviour),
           internals: parseFloat(internals),
+          classAverage: classAverage, // Save the text value ("Low", "Medium", "High")
           timestamp: serverTimestamp(),
           createdBy: user ? { uid: user.uid, email: user.email } : null,
         };
@@ -189,6 +209,8 @@ export default function ReviewPage() {
         transaction.set(newReviewRef, newReview);
 
         const updatedReviews = [...allReviews, newReview];
+        
+        // Calculate numeric averages
         const teachingAvg =
           updatedReviews.reduce((acc, r) => acc + (Number(r.teaching) || 0), 0) / updatedReviews.length;
         const evaluationAvg =
@@ -198,12 +220,22 @@ export default function ReviewPage() {
         const internalsAvg =
           updatedReviews.reduce((acc, r) => acc + (Number(r.internals) || 0), 0) / updatedReviews.length;
 
+        // --- Calculate Class Average (categorical) ---
+        const totalClassScore = updatedReviews.reduce((acc, r) => {
+          const val = r.classAverage ? getScore(r.classAverage) : 2; 
+          return acc + val;
+        }, 0);
+
+        const numericClassAvg = totalClassScore / updatedReviews.length;
+        const textClassAvg = getText(numericClassAvg);
+
         transaction.update(facultyRef, {
           reviewCount: updatedReviews.length,
           Teaching: teachingAvg,
           Evaluation: evaluationAvg,
           Behaviour: behaviourAvg,
           Internals: internalsAvg,
+          ClassAverage: textClassAvg, // Update with text
           lastUpdated: serverTimestamp(),
         });
       });
@@ -213,6 +245,7 @@ export default function ReviewPage() {
       setEvaluation("");
       setBehaviour("");
       setInternals("");
+      setClassAverage("Medium"); // Reset to default
       setSelectedFacultyId("");
       setSearchQuery("");
     } catch (err) {
@@ -234,6 +267,27 @@ export default function ReviewPage() {
       <h1 className="my-[2rem] text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
         Review Page
       </h1>
+
+      {/* --- NEW GUIDELINES SECTION --- */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-5 mb-6">
+        <h3 className="font-bold text-lg text-blue-900 dark:text-blue-100 mb-3">
+          📝 Guidelines & Instructions
+        </h3>
+        <ul className="list-disc list-outside ml-4 space-y-2 text-sm text-blue-800 dark:text-blue-200">
+          <li>
+            <strong>Be Authentic:</strong> Please be authentic and honest while proposing a new faculty name and also while giving reviews.
+          </li>
+          <li>
+            <strong>Evidence for Proposals:</strong> When proposing a new faculty, the link provided must verify their identity. You can use a <strong>Google Drive link</strong> (ensure "Anyone with the link can view" is enabled) containing a screenshot of Google Classroom or VTOP where the faculty name is displayed. You may also explain details in the notes section.
+          </li>
+          <li>
+            <strong>Proposal Status:</strong> After proposing, check back in a few days. If the faculty is not available, your proof may have been insufficient or the link invalid. If you believe your proof was authentic, please contact us using your <strong>college mail ID</strong> (avoid personal accounts).
+          </li>
+          <li>
+            <strong>Community:</strong> This platform is built to help you, your peers, and your juniors.
+          </li>
+        </ul>
+      </div>
 
       {/* Banner telling users they must sign in to propose */}
       <div className="rounded-md p-3 bg-yellow-50 dark:bg-yellow-900/40 border border-yellow-200 dark:border-yellow-700 text-sm text-yellow-800 dark:text-yellow-200">
@@ -296,6 +350,7 @@ export default function ReviewPage() {
       {(selectedFacultyId || showNewFacultyOption) && (
         <Card className="dark:bg-gray-900">
           <CardContent className="dark:text-white p-4 space-y-4 ">
+            {/* Numeric Rating Fields */}
             {[
               { label: "Teaching", value: teaching, setter: setTeaching },
               { label: "Evaluation", value: evaluation, setter: setEvaluation },
@@ -316,6 +371,21 @@ export default function ReviewPage() {
                 />
               </div>
             ))}
+
+            {/* Categorical Rating Field (Dropdown) */}
+            <div className="space-y-2">
+              <label className="block font-medium dark:text-gray-200">Class Average</label>
+              <select
+                value={classAverage}
+                onChange={(e) => setClassAverage(e.target.value)}
+                disabled={isSubmitting}
+                className="w-full p-2 rounded-md border border-input bg-background dark:bg-gray-800 dark:text-white"
+              >
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+              </select>
+            </div>
 
             <Button
               className="w-full bg-gray-800 dark:bg-indigo-600 cursor-pointer"
@@ -339,15 +409,18 @@ export default function ReviewPage() {
 
             <div className="space-y-2 mb-4">
               <label className="block text-sm font-medium dark:text-gray-200">Evidence URL (required)</label>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Provide a Google Drive link (with view access) or image URL showing the faculty name on VTOP or Google Classroom.
+              </p>
               <Input
-                placeholder="https://department.example.edu/profiles/..."
+                placeholder="https://drive.google.com/..."
                 value={evidenceUrl}
                 onChange={(e) => setEvidenceUrl(e.target.value)}
                 className="dark:bg-gray-800 dark:text-white"
               />
               <label className="block text-sm font-medium dark:text-gray-200">Notes (optional)</label>
               <Input
-                placeholder="Why do you think this is the correct person?"
+                placeholder="Additional details to help admins verify..."
                 value={proposalNotes}
                 onChange={(e) => setProposalNotes(e.target.value)}
                 className="dark:bg-gray-800 dark:text-white"
