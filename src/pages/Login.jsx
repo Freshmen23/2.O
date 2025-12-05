@@ -1,4 +1,3 @@
-// src/pages/Login.jsx
 import { useEffect, useState } from "react";
 import { signInWithGoogle, auth, onAuthStateChanged } from "@/utils/firebase";
 import { useNavigate } from "react-router-dom";

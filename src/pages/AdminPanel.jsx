@@ -1,4 +1,3 @@
-// src/pages/AdminPanel.jsx
 import React, { useEffect, useState } from "react";
 import { db } from "../utils/firebase";
 import { useAuth } from "../components/AuthContext";
@@ -18,13 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-/**
- * AdminPanel: lists pending_faculties (status == "pending"), allows approve/reject.
- *
- * Assumptions:
- * - Admin user UIDs exist as docs under /admins/{uid}
- * - Firestore rules (provided below) enforce admin-only create on faculties and admin-only read/write on pending_faculties
- */
+
 
 function normalizeName(name = "") {
   return name
