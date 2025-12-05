@@ -14,7 +14,6 @@ export default function AdminPage() {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (!u) { setIsAdmin(false); return; }
-      // check admins collection for a doc with id === u.uid
       const adminDoc = await getDoc(doc(db, "admins", u.uid));
       setIsAdmin(adminDoc.exists());
     });
@@ -27,8 +26,6 @@ export default function AdminPage() {
   if (!isAdmin) {
     return <div>Access denied. You are not an admin.</div>;
   }
-
-  // Render admin controls: a form to create faculty and reviews directly.
   return (
     <div className="p-6">
       <h1 className="text-2xl">Admin Dashboard</h1>

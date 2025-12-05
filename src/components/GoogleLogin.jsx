@@ -1,4 +1,3 @@
-// src/components/GoogleLogin.jsx
 import React, { useState } from "react";
 import { useAuth } from "./AuthContext";
 

@@ -1,4 +1,3 @@
-// src/components/AuthContext.jsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth, googleProvider } from "../utils/firebase";
 import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";

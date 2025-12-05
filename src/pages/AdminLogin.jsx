@@ -1,4 +1,3 @@
-// src/pages/AdminLogin.jsx
 import React, { useState, useEffect } from "react";
 import { signInWithEmailAndPassword, signOut as firebaseSignOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
@@ -68,7 +67,6 @@ export default function AdminLogin() {
   };
 
   if (checkingAdmin && isAdmin && authUser) {
-    // show admin panel with a small back-to-site link
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="p-4 max-w-6xl mx-auto flex items-center justify-between">

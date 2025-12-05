@@ -1,4 +1,3 @@
-// src/components/LoginButton.jsx
 import { useEffect, useState } from "react";
 import { auth, signInWithGoogle, signOut, onAuthStateChanged } from "@/utils/firebase";
 
